@@ -1,0 +1,58 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    name: linux (${{ matrix.compiler }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [g++, clang++]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y ninja-build
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+      - run: cmake --build build
+      - name: tests (epoll)
+        run: ./build/lbtests
+      - name: tests (portable poll backend)
+        run: HLB_FORCE_POLL=1 ./build/lbtests
+
+  sanitizers:
+    name: linux (${{ matrix.sanitizer }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sanitizer: [thread, "address,undefined"]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get install -y ninja-build
+      # Recent kernels randomize mmap more than ThreadSanitizer's shadow memory allows.
+      - run: sudo sysctl vm.mmap_rnd_bits=28
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo "-DHLB_SANITIZE=${{ matrix.sanitizer }}"
+      - run: cmake --build build --target lbtests
+      - run: ./build/lbtests
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+          UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+  windows:
+    name: windows (mingw)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja
+      - run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build
+      - run: ./build/lbtests
