@@ -1,6 +1,6 @@
-# Hybrid L4/L7 Load Balancer (C++20)
+# Hybrid L4/L7 Load Balancer
 
-A multi-threaded, event-driven TCP (layer 4) and HTTP/1.1 (layer 7) load balancer written from scratch in C++20 with
+A multi-threaded, event-driven TCP (layer 4) and HTTP/1.1 (layer 7) load balancer written from scratch with
 no third-party dependencies. It proxies raw TCP streams and HTTP requests across backend pools with round-robin,
 least-connections and smooth weighted round-robin scheduling, active and passive health checking, automatic failover,
 keep-alive connection pooling, and zero-downtime backend changes through an admin API.
