@@ -93,14 +93,18 @@ The suite passes on Linux with epoll and with the portable poll backend (`HLB_FO
 
 `lbbench` runs backends, the balancer and closed-loop clients in one process over loopback. Linux (Docker, 16 vCPUs of
 an AMD Ryzen 9 5900HS), Release build, 128-byte responses. Clients, backends and the balancer share the same cores, so
-treat absolute numbers as indicative.
+treat absolute numbers as indicative. Each row gives the range over repeated runs.
 
 | Scenario | Result |
 |---|---|
-| Added latency, 8 clients, 4 threads | p50 58 us, p99 105 us over going direct |
-| Throughput, 64 clients, 8 threads | 127,000 requests/s (p50 428 us, p99 2.2 ms) |
-| L4 bulk transfer, one connection echoed both ways | 991 MB/s (direct: 1,304 MB/s) |
-| Failover run: backend killed and restarted under 32 clients | 0 errors across 314,000 requests (17 transparent retries) |
+| Added latency, 8 clients, 4 threads (4 runs) | p50 57 to 62 us, p99 61 to 120 us over going direct |
+| Throughput, 64 clients, 8 threads (16 runs) | about 100,000 requests/s (89,000 to 116,000; median 103,000; p50 0.5 ms, p99 1.9 to 3.6 ms) |
+| L4 bulk transfer, one connection echoed both ways (3 runs) | 915 to 945 MB/s (direct: 1,337 to 1,401 MB/s) |
+| Failover run: backend killed and restarted under 32 clients (3 runs) | 0 errors in every run, across 304,000 to 326,000 requests (16 to 20 transparent retries) |
+
+Throughput varies run to run because the benchmark's own clients and backends compete with the balancer for the same
+cores: under `perf`, the client and backend threads take about 72% of CPU samples and each balancer worker is only
+about half busy, so the balancer is not the bottleneck in this setup.
 
 Profiling (`perf`) shows the workers spend almost all their time in the kernel's TCP stack rather than in parsing or
 scheduling, so the main optimization was fewer syscalls: each upstream read produces one client write (head and body
